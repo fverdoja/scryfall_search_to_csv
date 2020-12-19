@@ -10,7 +10,7 @@ def scryfall_json_to_csv(data, csv_filename, selectlist=[],
         Saves a Scryfall.com search result to a CSV file
 
             Parameters:
-                data (list): the data returned by a Scryfall search json
+                data (DataFrame): the data returned by a Scryfall search json
                     according to Scryfall's syntax.
                 csv_filename (string): the full path and filename of the CSV to
                     be saved.
@@ -21,16 +21,13 @@ def scryfall_json_to_csv(data, csv_filename, selectlist=[],
                     together, only selectlist is used.
                 sep (string): the separator character of the CSV, default ";".
     """
-
-    df = pd.DataFrame(data)
-
     if (len(selectlist) == 0 and len(deselectlist) > 0):
-        selectlist = [x for x in df.columns if x not in deselectlist]
+        selectlist = [x for x in data.columns if x not in deselectlist]
 
     if (len(selectlist) > 0):
-        data_to_write = df[selectlist]
+        data_to_write = data[selectlist]
     else:
-        data_to_write = df
+        data_to_write = data
 
     data_to_write.to_csv(csv_filename, index=False, encoding='utf-8', sep=sep)
 
@@ -44,9 +41,8 @@ def scryfall_search_to_json(search_str):
                     according to Scryfall's syntax
 
             Returns:
-                data (list): the search result data
+                data (DataFrame): the search result data
     """
-
     request_str = (
         "https://api.scryfall.com/cards/search?q=%s&pretty=true" % search_str)
 
@@ -77,15 +73,31 @@ def scryfall_search_to_json(search_str):
 
         print("Downloaded %d/%d results..." % (len(data), total_cards))
 
-    return data
+    return pd.DataFrame(data)
+
+
+def fix_dfc_image_uris(data):
+    '''Fix the missing image_uris for all DFC in the data'''
+    return data.apply(copy_front_image, axis=1)
+
+
+def copy_front_image(data):
+    '''Copy the image_uris from the front face of DFC to the main card'''
+    data_ = data
+    if pd.isna(data_["image_uris"]):
+        assert(~pd.isna(data_["card_faces"]))
+        data_["image_uris"] = data_["card_faces"][0]["image_uris"]
+    return data_
 
 
 if __name__ == "__main__":
     search_str = "game:Arena"
-    selectlist = ["name", "rarity", "set", "set_name", "booster"]
+    selectlist = ["name", "rarity", "set", "set_name",
+                  "booster", "arena_id", "foil", "image_uris"]
     csv_filename = "output.csv"
 
     data = scryfall_search_to_json(search_str)
+    data = fix_dfc_image_uris(data)
 
     print("Finished download. Writing CSV file...")
 
