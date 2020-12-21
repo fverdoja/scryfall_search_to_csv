@@ -85,7 +85,7 @@ def copy_front_image(data):
     '''Copy the image_uris from the front face of DFC to the main card'''
     data_ = data
     if pd.isna(data_["image_uris"]):
-        assert(~pd.isna(data_["card_faces"]))
+        assert(isinstance(data_["card_faces"], list))
         data_["image_uris"] = data_["card_faces"][0]["image_uris"]
     return data_
 
